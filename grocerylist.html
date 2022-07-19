@@ -41,10 +41,11 @@
 
         <div class="row overflow-hidden" id="content">
             <div class="col mh-100 float-left" id="main">
-                <div id="fileinput1"></div> 
-                <div id="fileinput2"></div>
-                <div id="select_filtering"></div>
-                <div id="Run_comparison"></div>
+                <div id="row1"></div> 
+                <div id="row2"></div>
+                <div id="row3"></div>
+                <div id="row4"></div>
+                <div id="row5"></div>
                 <div id="table"></div>
             </div>
         </div>
@@ -60,14 +61,20 @@ from panel.io.pyodide import show
 # FileInput widget which corresponds to the Newest file to be uploaded. Data can be extracted using file_input1.value
 # Will appear in row 1
 
-file_input2 = pn.widgets.FileInput(accept='.xlsx', width=180)
+file_input1 = pn.widgets.FileInput(accept='.xlsx', width=180)
 data_upload = pn.widgets.Button(name='Upload', button_type='primary', width=100)
-row2 = pn.Row(file_input2, data_upload, height=75)
+row1 = pn.Row(file_input1, data_upload, height=75)
+
+item_column = pn.widgets.Select(name='Select Item Column', options=[])
+cost_column = pn.widgets.Select(name='Select Cost Column', options=[])
+populate_dropdowns = pn.widgets.Button(name='Done', button_type='primary', width=100)
+row2 = pn.Row(item_column, cost_column, populate_dropdowns, height=75)
+
 
 balance_text = pn.widgets.TextInput(name = "Balance", placeholder = "Enter balance...")
 start = pn.widgets.Button(name='Initialize', button_type='primary', width=100)
 
-#column_ID = pn.widgets.Select(name='Select Identifier Column', options=[])
+
 
 row3 = pn.Row(balance_text, start, height=75)
 
@@ -82,44 +89,68 @@ row5 = pn.Row(remove_item, remove_button, height = 75)
 table = pn.widgets.Tabulator(pagination='remote', page_size=10)
 document.getElementById('table').style.display = 'none'
 
-df = []
+item_list = []
 balance = 0
-
+initial_df = pd.DataFrame({"Init":[]})
+df = pd.DataFrame({"Init":[]})
 def upload_data(event):
-    global df
-    if file_input2.value is not None:
-        df = pd.read_excel(io.BytesIO(file_input1.value))     
+    global initial_df
+    if file_input1.value is not None:
+        initial_df = pd.read_excel(io.BytesIO(file_input1.value))     
 
 	# Populate the dropdown menus with the column names of the dataframes
-   #     column_ID.options = df.columns.tolist()
-   #     column_compare.options = df.columns.tolist()
+        item_column.options = initial_df.columns.tolist()
+        cost_column.options = initial_df.columns.tolist()
+
+def populate_add_remove_lists(event):
+    global initial_df
+    if item_column.value is not None:
+        add_item.options = initial_df[item_column.value].unique().tolist()
 
 def initialize_balance(event):
     global balance
-    balance = float(balance_text.value)
+    if file_input1.value is not None:
+        balance = float(balance_text.value)
 
 def add_item_function(event):
+    global item_list
     global df
-    global balance
-    #df = df[df["ID"] == add_item.value]
-    df.append(balance)       
-    # data gets saved to Tabulator object and is displayed to user
-    table.value = df
-    document.getElementById('table').style.display = 'block'
+    if add_item.value is not None:
+        item_list.append(add_item.value)
+        df = pd.DataFrame({"Items" :item_list})    
+    
+        add_item.options = initial_df[initial_df[item_column.value].isin(df.Items.values) == False][item_column.value].unique().tolist()
+        remove_item.options = df.Items.values.tolist()
+    
+        # data gets saved to Tabulator object and is displayed to user
+        table.value = df
+        document.getElementById('table').style.display = 'block'
     
 def remove_item_function(event):
-    return
+    if remove_item.value is not None:
+        item_list.remove(remove_item.value)
+        df = pd.DataFrame({"Items" :item_list})
+        
+        remove_item.options = df.Items.values.tolist()
+        add_item.options = initial_df[initial_df[item_column.value].isin(df.Items.values) == False][item_column.value].unique().tolist()
+
+        # data gets saved to Tabulator object and is displayed to user        
+        table.value = df
+        document.getElementById('table').style.display = 'block'
+
 
 
 data_upload.on_click(upload_data)
+populate_dropdowns.on_click(populate_add_remove_lists)
 start.on_click(initialize_balance)
 add_button.on_click(add_item_function)
 remove_button.on_click(remove_item_function)
 
-await show(row2, 'fileinput1')
-await show(row3, 'fileinput2')
-await show(row4, 'select_filtering')
-await show(row5, 'Run_comparison')
+await show(row1, 'row1')
+await show(row2, 'row2')
+await show(row3, 'row3')
+await show(row4, 'row4')
+await show(row5, 'row5')
 await show(table, 'table')
 
     </py-script>
