@@ -89,6 +89,7 @@ table = pn.widgets.Tabulator(pagination='remote', page_size=10)
 document.getElementById('table').style.display = 'none'
 
 item_list = []
+item_simplified_list = []
 balance = 0
 initial_df = pd.DataFrame({"Init":[]})
 df = pd.DataFrame({"Init":[]})
@@ -106,47 +107,60 @@ def initialize_all(event):
     global balance
     global initial_df
     global item_list
+    global item_simplified_list
     item_list = []
+    item_simplified_list = []
     if file_input1.value is not None:
         balance = float(balance_text.value)
+        
+    if item_column.value is not None and cost_column.value is not None:
+        initial_df["Concat"] = initial_df[item_column.value] + " ($" + initial_df[cost_column.value].astype(str) + ")"
+        
     if item_column.value is not None:
-        add_item.options = initial_df[initial_df[cost_column.value]<=balance][item_column.value].unique().tolist()
+        add_item.options = initial_df[initial_df[cost_column.value]<=balance]["Concat"].unique().tolist()
     remove_item.options = []
     df = pd.DataFrame({"Init":[]})
     document.getElementById('table').style.display = 'none'   
         
 def add_item_function(event):
     global item_list
+    global item_simplified_list
     global df
     global balance
     if add_item.value is not None:
         item_list.append(add_item.value)
-        cost_list = initial_df[initial_df[item_column.value].isin(item_list)][cost_column.value].values.tolist()
-        df = pd.DataFrame({"Item" :item_list,"Cost":cost_list})    
+        item_simplified_list = initial_df[initial_df["Concat"].isin(item_list)][item_column.value].values.tolist()
+        cost_list = initial_df[initial_df["Concat"].isin(item_list)][cost_column.value].values.tolist()
+        df = pd.DataFrame({"Item" :item_simplified_list,"Cost":cost_list})
+        df["Concat"] = df["Item"].astype(str) + " ($" + df["Cost"].astype(str) + ")"
         
-        balance = balance - initial_df[initial_df[item_column.value]==add_item.value][cost_column.value].item()
+        balance = balance - initial_df[initial_df["Concat"]==add_item.value][cost_column.value].item()
         bool_exp = initial_df[cost_column.value].le(balance) & (initial_df[item_column.value].isin(df.Item.values) == False).values
-        add_item.options = initial_df[bool_exp][item_column.value].unique().tolist()
-        remove_item.options = df.Item.values.tolist()
-    
+        add_item.options = initial_df[bool_exp]["Concat"].unique().tolist()
+        remove_item.options = df.Concat.values.tolist()
+        df = df.drop("Concat",axis=1)
+        
         # data gets saved to Tabulator object and is displayed to user
         table.value = df
         document.getElementById('table').style.display = 'block'
     
 def remove_item_function(event):
     global item_list
+    global item_simplified_list
     global df
     global balance
     if remove_item.value is not None:
         item_list.remove(remove_item.value)
-        cost_list = initial_df[initial_df[item_column.value].isin(item_list)][cost_column.value].values.tolist()
-        df = pd.DataFrame({"Item" :item_list,"Cost":cost_list})    
+        item_simplified_list = initial_df[initial_df["Concat"].isin(item_list)][item_column.value].values.tolist()
+        cost_list = initial_df[initial_df["Concat"].isin(item_list)][cost_column.value].values.tolist()
+        df = pd.DataFrame({"Item" :item_simplified_list,"Cost":cost_list})     
+        df["Concat"] = df["Item"].astype(str) + " ($" + df["Cost"].astype(str) + ")"
         
-        balance = balance + initial_df[initial_df[item_column.value]==remove_item.value][cost_column.value].item()
+        balance = balance + initial_df[initial_df["Concat"]==remove_item.value][cost_column.value].item()
         bool_exp = initial_df[cost_column.value].le(balance) & (initial_df[item_column.value].isin(df.Item.values) == False).values
-        add_item.options = initial_df[bool_exp][item_column.value].unique().tolist()
-        remove_item.options = df.Item.values.tolist()
-        
+        add_item.options = initial_df[bool_exp]["Concat"].unique().tolist()
+        remove_item.options = df.Concat.values.tolist()
+        df = df.drop("Concat",axis=1)       
         
         # data gets saved to Tabulator object and is displayed to user        
         table.value = df
