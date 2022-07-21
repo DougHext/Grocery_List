@@ -46,7 +46,9 @@
                 <div id="row3"></div>
                 <div id="row4"></div>
                 <div id="row5"></div>
+                <div id="table_summary"></div>
                 <div id="table"></div>
+
             </div>
         </div>
     </div>
@@ -58,12 +60,10 @@ import openpyxl
 from panel.io.pyodide import show
 
 
-# FileInput widget which corresponds to the Newest file to be uploaded. Data can be extracted using file_input1.value
-# Will appear in row 1
-
 file_input1 = pn.widgets.FileInput(accept='.xlsx', width=180)
 data_upload = pn.widgets.Button(name='Upload', button_type='primary', width=100)
 row1 = pn.Row(file_input1, data_upload, height=75)
+
 
 item_column = pn.widgets.Select(name='Select Item Column', options=[])
 cost_column = pn.widgets.Select(name='Select Cost Column', options=[])
@@ -72,27 +72,32 @@ row2 = pn.Row(item_column, cost_column, height=75)
 
 balance_text = pn.widgets.TextInput(name = "Balance", placeholder = "Enter balance...")
 start = pn.widgets.Button(name='Initialize', button_type='primary', width=100)
-
-
-
 row3 = pn.Row(balance_text, start, height=75)
+
 
 add_item = pn.widgets.Select(name='Add Item', options=[])
 add_button = pn.widgets.Button(name='Add', button_type='primary', width=100)
 row4 = pn.Row(add_item, add_button, height = 75)
 
+
 remove_item = pn.widgets.Select(name='Remove Item', options=[])
 remove_button = pn.widgets.Button(name='Remove', button_type='primary', width=100)
 row5 = pn.Row(remove_item, remove_button, height = 75)
 
+
+table_summary = pn.widgets.Tabulator(pagination='remote', page_size=10)
+document.getElementById('table_summary').style.display = 'none'
 table = pn.widgets.Tabulator(pagination='remote', page_size=10)
 document.getElementById('table').style.display = 'none'
+
 
 item_list = []
 item_simplified_list = []
 balance = 0
 initial_df = pd.DataFrame({"Init":[]})
 df = pd.DataFrame({"Init":[]})
+
+
 def upload_data(event):
     global initial_df
     if file_input1.value is not None:
@@ -120,6 +125,7 @@ def initialize_all(event):
         add_item.options = initial_df[initial_df[cost_column.value]<=balance]["Concat"].unique().tolist()
     remove_item.options = []
     df = pd.DataFrame({"Init":[]})
+    document.getElementById('table_summary').style.display = 'none'   
     document.getElementById('table').style.display = 'none'   
         
 def add_item_function(event):
@@ -140,6 +146,14 @@ def add_item_function(event):
         remove_item.options = df.Concat.values.tolist()
         df = df.drop("Concat",axis=1)
         
+        total_spent = initial_df[initial_df[item_column.value].isin(item_simplified_list)][cost_column.value].sum()
+        total_leftover = balance        
+        df_summary = pd.DataFrame({"Amount Spent" :[total_spent],"Balance Remaining":[total_leftover]})
+        
+        # data gets saved to Tabulator object and is displayed to user
+        table_summary.value = df_summary
+        document.getElementById('table_summary').style.display = 'block'
+               
         # data gets saved to Tabulator object and is displayed to user
         table.value = df
         document.getElementById('table').style.display = 'block'
@@ -161,6 +175,14 @@ def remove_item_function(event):
         add_item.options = initial_df[bool_exp]["Concat"].unique().tolist()
         remove_item.options = df.Concat.values.tolist()
         df = df.drop("Concat",axis=1)       
+
+        total_spent = initial_df[initial_df[item_column.value].isin(item_simplified_list)][cost_column.value].sum()
+        total_leftover = balance        
+        df_summary = pd.DataFrame({"Amount Spent" :[total_spent],"Balance Remaining":[total_leftover]})
+        
+        # data gets saved to Tabulator object and is displayed to user
+        table_summary.value = df_summary
+        document.getElementById('table_summary').style.display = 'block'
         
         # data gets saved to Tabulator object and is displayed to user        
         table.value = df
@@ -178,6 +200,7 @@ await show(row2, 'row2')
 await show(row3, 'row3')
 await show(row4, 'row4')
 await show(row5, 'row5')
+await show(table_summary, 'table_summary')
 await show(table, 'table')
 
     </py-script>
